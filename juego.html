@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desafío Francia: 1000 Puntos</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            /* Fondo con la bandera de Francia */
+            background: linear-gradient(to right, 
+                #002395 0%, #002395 33.33%, 
+                #ffffff 33.33%, #ffffff 66.66%, 
+                #ed2939 66.66%, #ed2939 100%);
+        }
+
+        /* Marcador superior */
+        #hud {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            z-index: 10;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        /* Área donde aparecen los círculos */
+        #campo-juego {
+            position: relative;
+            width: 100%;
+            flex-grow: 1;
+            cursor: crosshair;
+        }
+
+        /* Estilo de las imágenes a recolectar */
+        .imagen-objeto {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+            object-fit: contain;
+        }
+
+        .imagen-objeto:active {
+            transform: scale(0.8);
+        }
+
+        /* Pantallas de Mensajes (Inicio, Ganaste, Perdiste) */
+        .pantalla {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .pantalla h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        .pantalla p {
+            font-size: 1.3rem;
+            margin-bottom: 30px;
+            max-width: 600px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+            background-color: #a79428;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #218838;
+        }
+
+        .oculto {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="hud">
+        <div>Tiempo: <span id="tiempo">02:00</span></div>
+        <div>Puntos: <span id="puntos">0</span> / 1000</div>
+    </div>
+
+    <div id="campo-juego"></div>
+
+    <div id="pantalla-inicio" class="pantalla">
+        <h1>¡Bienvenido al Desafío de Francia!</h1>
+        <p>El objetivo es recolectar las imagenes lo más rápido posible. Cada imagen vale 10 puntos. ¡Necesitas 1000 puntos en menos de 2 minutos para sobrevivir a la hambruna!</p>
+        <button class="btn" onclick="empezarJuego()">Comenzar Juego</button>
+    </div>
+
+    <div id="pantalla-fin" class="pantalla oculto">
+        <h1 id="resultado-titulo">¡Fin del Juego!</h1>
+        <p id="resultado-mensaje"></p>
+        <button class="btn" onclick="reiniciarJuego()">Jugar de Nuevo</button>
+    </div>
+
+    <script>
+        // Variables del juego
+        let puntos = 0;
+        let tiempoRestante = 120; // 2 minutos en segundos
+        let intervaloTiempo;
+        const metaPuntos = 1000;
+        const puntosPorCirculo = 10;
+
+        const campoJuego = document.getElementById('campo-juego');
+        const txtPuntos = document.getElementById('puntos');
+        const txtTiempo = document.getElementById('tiempo');
+        const pantallaInicio = document.getElementById('pantalla-inicio');
+        const pantallaFin = document.getElementById('pantalla-fin');
+        const resultadoTitulo = document.getElementById('resultado-titulo');
+        const resultadoMensaje = document.getElementById('resultado-mensaje');
+
+        // Función para iniciar el juego
+        function empezarJuego() {
+            pantallaInicio.classList.add('oculto');
+            pantallaFin.classList.add('oculto');
+            puntos = 0;
+            tiempoRestante = 120;
+            txtPuntos.innerText = puntos;
+            actualizarReloj();
+            
+            // Limpiar campo por si acaso
+            campoJuego.innerHTML = '';
+
+            // Crear el primer círculo
+            aparecerCirculo();
+
+            // Iniciar temporizador
+            intervaloTiempo = setInterval(() => {
+                tiempoRestante--;
+                actualizarReloj();
+
+                if (tiempoRestante <= 0) {
+                    finalizarJuego(false); // Perdió por tiempo
+                }
+            }, 1000);
+        }
+
+        // Convierte los segundos a formato MM:SS
+        function actualizarReloj() {
+            let minutos = Math.floor(tiempoRestante / 60);
+            let segundos = tiempoRestante % 60;
+            minutos = minutos < 10 ? '0' + minutos : minutos;
+            segundos = segundos < 10 ? '0' + segundos : segundos;
+            txtTiempo.innerText = `${minutos}:${segundos}`;
+        }
+
+        // Coloca una imagen en una posición aleatoria dentro del área visible
+        function aparecerCirculo() {
+            // Eliminar imágenes anteriores para que solo haya una a la vez
+            campoJuego.innerHTML = '';
+
+            const imagen = document.createElement('img');
+            imagen.classList.add('imagen-objeto');
+            imagen.src = 'imagen_mp01.png';
+            imagen.alt = 'Objeto coleccionable';
+
+            // Calcular posiciones máximas (restando el tamaño de la imagen para que no se salga de la pantalla)
+            const xMax = campoJuego.clientWidth - 70;
+            const yMax = campoJuego.clientHeight - 70;
+
+            const xAleatoria = Math.floor(Math.random() * Math.max(xMax, 10));
+            const yAleatoria = Math.floor(Math.random() * Math.max(yMax, 10));
+
+            imagen.style.left = `${xAleatoria}px`;
+            imagen.style.top = `${yAleatoria}px`;
+
+            // Evento al hacer clic en la imagen
+            imagen.addEventListener('click', (e) => {
+                e.stopPropagation(); // Evita clicks fantasmas
+                puntos += puntosPorCirculo;
+                txtPuntos.innerText = puntos;
+
+                if (puntos >= metaPuntos) {
+                    finalizarJuego(true); // Ganó
+                } else {
+                    aparecerCirculo(); // Siguiente imagen
+                }
+            });
+
+            campoJuego.appendChild(imagen);
+        }
+
+        // Maneja el fin del juego (Victoria o Derrota)
+        function finalizarJuego(ganado) {
+            clearInterval(intervaloTiempo);
+            campoJuego.innerHTML = '';
+            pantallaFin.classList.remove('oculto');
+
+            if (ganado) {
+                let tiempoEmpleado = 120 - tiempoRestante;
+                let minEmpleados = Math.floor(tiempoEmpleado / 60);
+                let segEmpleados = tiempoEmpleado % 60;
+                
+                resultadoTitulo.innerText = "¡Has Sobrevivido a la Hambruna! 🇫🇷";
+                resultadoMensaje.innerText = `¡Lograste reunir 1000 puntos y sobreviviste a la hambruna! \nTu tiempo fue de ${minEmpleados} minuto(s) y ${segEmpleados} segundo(s).`;
+            } else {
+                resultadoTitulo.innerText = "¡Moriste de Hambre! 💀";
+                resultadoMensaje.innerText = `Te quedaste con ${puntos} puntos. La hambruna de la Revolucion Francesa fue implacable. ¡Intenta de nuevo!`;
+            }
+        }
+
+        function reiniciarJuego() {
+            empezarJuego();
+        }
+    </script>
+</body>
+</html>
